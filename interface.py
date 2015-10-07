@@ -5,7 +5,7 @@ def print_parameters(search_engine, precision):
     print 'Parameters:'
     print 'Client key  = ' + search_engine.getKey()
     print 'Query       = ' + ' '.join(search_engine.getQuery())
-    print 'Precision   = ' + precision
+    print 'Precision   = ' + str(precision)
     print 'URL: ' + search_engine.getUrl()
     print 'Total no of results: 10'
     print 'Bing Search Results:'
@@ -33,16 +33,16 @@ def interact(result):
         N = N + 1
     return array_score, total_relevant / 10.0
 
-def print_transcript(precision, query):
+def print_transcript(precision, query, target_precision):
     print '======================'
     print 'FEEDBACK SUMMARY'
     print 'Query: ' + ' '.join(query)
     print 'Precision: %.1f' % (precision)
 
-    if precision >= 0.9:
+    if precision >= target_precision:
         print 'Desired precision reached, done'
     else:
-        print 'Still below the desired precision of 0.9'
+        print 'Still below the desired precision of ' + str(target_precision)
     
 def print_new_terms(new_terms):
     print 'Indexing results ....'

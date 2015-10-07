@@ -37,6 +37,12 @@ def parse_xml(xml_content):
             result_array.append(parsed_result)
     return result_array
 
+def format_to_utf8(text):
+    if type(text) != unicode:
+        return unicode(text, errors='ignore').encode('utf-8')
+    else:
+        return text.encode('utf-8')
+
 def parse_single_site(entry):
     for content in entry:
         match = re.search('.*content$', content.tag)
@@ -45,11 +51,11 @@ def parse_single_site(entry):
             for properties in content[0]:              
                 match = re.search('.*Title$', properties.tag)
                 if match != None:
-                    info.setTitle(properties.text)
+                    info.setTitle(format_to_utf8(properties.text))
                 match = re.search('.*Description$', properties.tag)
                 if match != None:
-                    info.setDescription(properties.text)
+                    info.setDescription(format_to_utf8(properties.text))
                 match = re.search('.*Url$', properties.tag)
                 if match != None:
-                    info.setUrl(properties.text)
+                    info.setUrl(format_to_utf8(properties.text))
             return info

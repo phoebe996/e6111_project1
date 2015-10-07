@@ -5,8 +5,8 @@ import interface
 
 def main(argv):
     accountKey = argv[0]
-    target_precision = argv[1]
-    query = [argv[2]]
+    target_precision = float(argv[1])
+    query = [word.lower() for word in argv[2:]]
     precision = 0.0
     search_engine = search.SearchEngine(accountKey)
     while True:  
@@ -14,7 +14,7 @@ def main(argv):
         interface.print_parameters(search_engine, target_precision)
         result = parser.parse_xml(xml) 
         array_score, precision = interface.interact(result)
-        interface.print_transcript(precision, query)
+        interface.print_transcript(precision, query, target_precision)
         if precision >= target_precision:
             break
         else:

@@ -2,6 +2,8 @@ import urllib2
 import base64
 import nltk
 import collections
+from nltk.tokenize import RegexpTokenizer
+import math
 
 class SearchEngine:
     def __init__(self, key):
@@ -36,47 +38,84 @@ class SearchEngine:
     def getQuery(self):
         return self.query
 
+def empty_list():
+    return [0,0,0,0,0,0,0,0,0,0]
+def empty_float_list():
+    return [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
 # TODO
 # Expand origial query based on relevence feedback
 def query_expand(documents, scores, query):
-    print 'documents'
-    print documents
-    print 'scores'
-    print scores
     stopwords = nltk.corpus.stopwords.words('english')
-    words_score = collections.defaultdict(int)
-    top_two_words = [('',0),('',0)]
-    total_score = 0
-    new_terms = []
+    words_score = collections.defaultdict(empty_list)
+    weights = collections.defaultdict(empty_float_list)
     for i in range(0, len(documents)):
-        if scores[i] == 1:
-            total_score += 1
-            words = documents[i].getTitle().split()
-            print 'current words'
-            print words
-            for word in words:
-                if word not in stopwords:
-                    words_score[word] += 1
-                    if word not in query and words_score[word] > top_two_words[1][1]:
-                        if words_score[word] > top_two_words[0][1]:
-                            top_two_words[1] = top_two_words[0]
-                            top_two_words[0] = (word, words_score[word])
-                        else:
-                            top_two_words[1] = (word, words_score[word])
+        tokenizer = RegexpTokenizer('\w+|\d+')
+        words = tokenizer.tokenize(documents[i].getTitle())
+        #words = tokenizer.tokenize(documents[i])
+        for word in words:
+            if word not in stopwords:
+                word = word.lower()
+                words_score[word][i] += 1
+    for word in words_score:
+        df = 0
+        for times in words_score[word]:
+            if times > 0:
+                df += 1
+        for i in range(0,10):
+            weights[word][i] = words_score[word][i] * math.log(10.0/df)
+    relevence_doc = collections.defaultdict(float)
+    nonrelevence_doc = collections.defaultdict(float)
+    relevence_doc_num = 0
 
-    if top_two_words[0][1] >= total_score:
-        new_terms.append(top_two_words[0][0])
-    if top_two_words[1][1] >= total_score:
-        new_terms.append(top_two_words[1][0])
-    print words_score
-    query.extend(new_terms)
-    all_terms_with_score = {}
-    for term in query:
-        all_terms_with_score[term] = words_score[term]
+    for i in range(0, 10):
+        tmp = 0.0
+        for word in weights:
+            tmp += math.pow(weights[word][i],2)
+        tmp = math.sqrt(tmp)
+        normalized_weight = collections.defaultdict(float)
+        for word in weights:
+            normalized_weight[word] = weights[word][i]/tmp
+        if scores[i] == 1:
+            relevence_doc_num += 1
+            for word in normalized_weight:
+                relevence_doc[word] += normalized_weight[word]
+        else:
+            for word in normalized_weight:
+                nonrelevence_doc[word] += normalized_weight[word]
+    print relevence_doc
+    print nonrelevence_doc
+    new_score = collections.defaultdict(float)
+    for word in weights:
+        new_score[word] = 0.8 * relevence_doc[word]/relevence_doc_num - 0.1 * nonrelevence_doc[word]/(10-relevence_doc_num)
+        if word in query:
+            new_score[word] += 1
+    new_terms = []
     new_query = []
-    for s in sorted(all_terms_with_score.iteritems(), key=lambda x: x[1]):
-        new_query.insert(0,s[0])
-    print all_terms_with_score
-    print new_terms
-    print new_query
+    sorted_scores = sorted(new_score.iteritems(), key=lambda x: -x[1])
+    print sorted_scores
+    for s in sorted_scores:
+        if s[1] >= 0.1:
+            new_query.append(s[0])
+            if s[0] not in query:
+                new_terms.append(s[0])
+            if len(new_terms) >= 2:
+                break
+        else:
+            break
     return new_terms, new_query
+
+if __name__=='__main__':
+    query_expand([
+        'Hello New York city hello.',
+        'hello',
+        'hello new york', 
+        'hello seattle', 
+        'seattle is raining again', 
+        'hello again new york', 
+        'new york city rocks', 
+        'columbia university in the city of new york',
+        'winter is coming in new york',
+        'winter is coming'
+        ], 
+        [1,0,1,0,0,1,1,1,1,0],['new', 'york'])
+    #TODO   normalize scores? stopwords? description? threshore? 
