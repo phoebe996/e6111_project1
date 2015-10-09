@@ -3,6 +3,7 @@ import base64
 import nltk
 import collections
 from nltk.tokenize import RegexpTokenizer
+from nltk.stem import RegexpStemmer
 import math
 
 class SearchEngine:
@@ -40,22 +41,41 @@ class SearchEngine:
 
 def empty_list():
     return [0,0,0,0,0,0,0,0,0,0]
+
 def empty_float_list():
     return [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+
+def get_stopword_in_query(query, stopwords):
+    S = []
+    for word in query:
+        if word in stopwords:
+            S.append(word)
+    return S
+
 # TODO
 # Expand origial query based on relevence feedback
 def query_expand(documents, scores, query):
     stopwords = nltk.corpus.stopwords.words('english')
+    stopwords = [ word.encode('utf-8') for word in stopwords]
+    stopwords_in_query = get_stopword_in_query(query, stopwords)
     words_score = collections.defaultdict(empty_list)
     weights = collections.defaultdict(empty_float_list)
+    st = RegexpStemmer('ing$|s$', min=5)
     for i in range(0, len(documents)):
         tokenizer = RegexpTokenizer('\w+|\d+')
-        words = tokenizer.tokenize(documents[i].getTitle())
+        title_words = tokenizer.tokenize(documents[i].getTitle())
+        description_words = tokenizer.tokenize(documents[i].getDescription())
         #words = tokenizer.tokenize(documents[i])
-        for word in words:
-            if word not in stopwords:
-                word = word.lower()
-                words_score[word][i] += 1
+        for word in title_words:
+            word = word.lower()
+            # word = st.stem(word.lower())
+            if word not in stopwords or word in stopwords_in_query:
+                words_score[word][i] += 1.2
+        for word in description_words:
+            word = word.lower()
+            # word = st.stem(word.lower())
+            if word not in stopwords or word in stopwords_in_query:
+                words_score[word][i] += 0.8
     for word in words_score:
         df = 0
         for times in words_score[word]:
@@ -67,6 +87,7 @@ def query_expand(documents, scores, query):
     nonrelevence_doc = collections.defaultdict(float)
     relevence_doc_num = 0
 
+    # normalization and Rocchio Algorithm
     for i in range(0, 10):
         tmp = 0.0
         for word in weights:
@@ -82,40 +103,40 @@ def query_expand(documents, scores, query):
         else:
             for word in normalized_weight:
                 nonrelevence_doc[word] += normalized_weight[word]
-    print relevence_doc
-    print nonrelevence_doc
+
+    # use default parameters as suggested in the paper
+    alpha = 1
+    beta  = 0.8
+    gamma = 0.15
     new_score = collections.defaultdict(float)
     for word in weights:
-        new_score[word] = 0.8 * relevence_doc[word]/relevence_doc_num - 0.1 * nonrelevence_doc[word]/(10-relevence_doc_num)
+        new_score[word] = beta * relevence_doc[word]/relevence_doc_num - gamma * nonrelevence_doc[word]/(10-relevence_doc_num)
         if word in query:
-            new_score[word] += 1
+            new_score[word] += alpha
     new_terms = []
     new_query = []
     sorted_scores = sorted(new_score.iteritems(), key=lambda x: -x[1])
-    print sorted_scores
+    # print sorted_scores
+
+    # pick two terms with highest score
+    first_new_term = None
     for s in sorted_scores:
-        if s[1] >= 0.1:
-            new_query.append(s[0])
-            if s[0] not in query:
+        if s[0] not in query:
+            if len(new_terms) == 1:
+                if s[1] * 1.5 < first_new_term[1]:
+                    break
+                else:
+                    new_terms.append(s[0])
+                    new_query.append(s[0])
+            else:
+                first_new_term = s
                 new_terms.append(s[0])
-            if len(new_terms) >= 2:
-                break
+                new_query.append(s[0])
         else:
+            new_query.append(s[0])
+        if len(new_terms) > 1:
             break
+
     return new_terms, new_query
 
-if __name__=='__main__':
-    query_expand([
-        'Hello New York city hello.',
-        'hello',
-        'hello new york', 
-        'hello seattle', 
-        'seattle is raining again', 
-        'hello again new york', 
-        'new york city rocks', 
-        'columbia university in the city of new york',
-        'winter is coming in new york',
-        'winter is coming'
-        ], 
-        [1,0,1,0,0,1,1,1,1,0],['new', 'york'])
     #TODO   normalize scores? stopwords? description? threshore? 
