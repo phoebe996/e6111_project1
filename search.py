@@ -6,6 +6,9 @@ from nltk.tokenize import RegexpTokenizer
 from nltk.stem import RegexpStemmer
 import math
 
+'''
+SearchEngine object that's responsible for making query requests to and get response from Bing server.
+'''
 class SearchEngine:
     def __init__(self, key):
         #self.accountKey = 'KtKgk8Mo5p6/rJE0FnlmA8qKVi1F7kS3OQbxik1ZnCg'
@@ -45,6 +48,7 @@ def empty_list():
 def empty_float_list():
     return [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
 
+# get stopwords in query
 def get_stopword_in_query(query, stopwords):
     S = []
     for word in query:
@@ -52,7 +56,6 @@ def get_stopword_in_query(query, stopwords):
             S.append(word)
     return S
 
-# TODO
 # Expand origial query based on relevence feedback
 def query_expand(documents, scores, query):
     stopwords = nltk.corpus.stopwords.words('english')
@@ -61,21 +64,20 @@ def query_expand(documents, scores, query):
     words_score = collections.defaultdict(empty_list)
     weights = collections.defaultdict(empty_float_list)
     st = RegexpStemmer('ing$|s$', min=5)
+    # Add scores to each word based on their frequency
     for i in range(0, len(documents)):
         tokenizer = RegexpTokenizer('\w+|\d+')
         title_words = tokenizer.tokenize(documents[i].getTitle())
         description_words = tokenizer.tokenize(documents[i].getDescription())
-        #words = tokenizer.tokenize(documents[i])
         for word in title_words:
             word = word.lower()
-            # word = st.stem(word.lower())
             if word not in stopwords or word in stopwords_in_query:
                 words_score[word][i] += 1.2
         for word in description_words:
             word = word.lower()
-            # word = st.stem(word.lower())
             if word not in stopwords or word in stopwords_in_query:
                 words_score[word][i] += 0.8
+    # compute tf-idf weight
     for word in words_score:
         df = 0
         for times in words_score[word]:
@@ -83,6 +85,7 @@ def query_expand(documents, scores, query):
                 df += 1
         for i in range(0,10):
             weights[word][i] = words_score[word][i] * math.log(10.0/df)
+            
     relevence_doc = collections.defaultdict(float)
     nonrelevence_doc = collections.defaultdict(float)
     relevence_doc_num = 0
