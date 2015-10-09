@@ -29,7 +29,8 @@ def parse_xml(xml_content):
     tree = ET.parse(xml_content)
     root = tree.getroot()
     result_array = []
-    #search <entry> to identify results
+    # search <entry> to identify results
+    # under normal condition 10 results are returned
     for child in root:
         match = re.search('.*entry$', child.tag)
         if match != None:
@@ -44,6 +45,8 @@ def format_to_utf8(text):
         return text.encode('utf-8')
 
 def parse_single_site(entry):
+    # use regular expression to identify the 'content' and
+    # the information of interest inside
     for content in entry:
         match = re.search('.*content$', content.tag)
         if match != None:

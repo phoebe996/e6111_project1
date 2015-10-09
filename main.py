@@ -6,13 +6,15 @@ import interface
 def main(argv):
     accountKey = argv[0]
     target_precision = float(argv[1])
-    query = [word.lower() for word in argv[2:]]
+    query = argv[2].lower().split()
     precision = 0.0
     search_engine = search.SearchEngine(accountKey)
     while True:  
         xml = search_engine.search(query)
         interface.print_parameters(search_engine, target_precision)
-        result = parser.parse_xml(xml) 
+        result = parser.parse_xml(xml)
+        if len(result) < 10:
+            break
         array_score, precision = interface.interact(result)
         if precision == 0.0:
             print 'Below desired precision, but can no longer augment the query'
