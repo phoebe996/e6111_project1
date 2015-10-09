@@ -1,14 +1,10 @@
-COMS E6111 Advanced Database Systems - Project 1
+Project 1
 
 a) Group members:
-
     Yu Wang (yw2684)
     Chia-Jung Lin (cl3295)
 
-
-
-b) Files:
-
+b) Files list:
     /--+--README
        +--main.py
        +--search.py
@@ -18,105 +14,78 @@ b) Files:
        +--transcript_gates.txt
        +--transcript_taj_mahal.txt
 
-
-
-c) How to run:
+c) Description of how to run:
 
     python main.py <bing account key> <precision> <query>
     where:
-        * bing account key: the Bing Account Key used for searching
-        * precision: a real number between 0 and 1
-        * query: a list of words in single quotes
+        - bing account key is your Bing Search Account Key
+        - precision is the target value for precision@10, a real between 0 and 1
+        - query is a list of words seperated by space in single quotes
+
+    For example, when we want to search about 'taj mahal', we can run the following command in our project repository:
+    python main.py KtKgk8Mo5p6/rJE0FnlmA8qKVi1F7kS3OQbxik1ZnCg 0.9 'taj mahal'
 
 
 d) Internal design:
 
-    Overall structure: Our program is mainly composed of four parts: search, parsing, judgement, and query expansion.
+    Our project has four components, which are search, parser, user interface and the main controller.
 
-    main.py: The entry point of the program. At the beginning of the routine, the query term list is processed by the
-    search engine to form the request to the Bing server. In our setting, the result of the search from the Bing server
-    will contain top-10 relevant web sites and be of XML format. The XML object is then parsed to get the information
-    for users to decide whether each result is indeed relevant or not. After the judgement process is done, the program
-    terminates if the desired relevance of the result is met or there is totally no relevant result. However, when there
-    are relevant results but the relevance requirement is not met, the routine must be redone to get more relevant
-    results. For the next routine, we pass the entire judgement result including the content of search results to the
-    query expansion module which can compute the best fit words for the next round. The routine is then repeated until
-    the relevance requirement is met.
+    Main controller is main.py and it controls the main workflow of our program:
+    1) It takes the origin input from the user which includes the Bing account key, target precision and query words list
+    2) With the above inputs, it calls search component to search the query on Bing with the Bing account key
+    3) It calls the parse component to parse the search result into Siteinfo objects from which we can easily get the url, title and description of each search result object.
+    4) It calls the user interface component to show the top-10 search results to the user (in command line), and to ask user mark which results are relevent
+    5)
+        - If the relevence precison is 0, it calls user interface component to output termination message and terminates the program
+        - If the relevence precision is less than the target precision, it calls search component to re-phrase the query, which includes expanding the query with new terms and reorder the terms in the query, and goes back to step 2) and does the search again.
+        - If the relevence precision is equal or larger than target precision, it calls the user interface component to output message and terminates the program
 
-    Computation.py: Contain some vector calculation methods that are used in the query expansion calculation
+    Search component is search.py and is in charge of making search requests to Bing server and geting the response back, as well as expanding the query with new terms and reordering query with relevence feedback from user.
 
-    Search_engine.py: Format the query url that is used by Bing API and get the result back
+    Parse component is parse.py. It parses the xml doc returned by Bing into Siteinfo objects, from which we can easily get the url, title and description of each search result item.
 
-    Xml_parser.py: Parse the XML result returned by Bing so that we can retrieve the part of information
-    that we are interested in
-
-    QueryExpansion.py: Contain the query expansion algorithm which will be explained in detail in part(e)
-
-    Document.py: Define a class for representing each document returned by the Bing Search API
+    User interface component is interface.py. It's in charge of printing out messages and searching results in terminal and interacting with user.
 
 
-
-
-e) Details of query modification:
+e) Query modification method:
 
 The query modification algorithm is composed of the following parts:
-1. remove punctuations and stopwords
-        When calculating weights, we ignore the stopwords that are listed in NLTK package. We keep the ones that are included in query, if there is any. 
+1) Remove punctuations and stopwords
+        When calculating weights, we ignore the stopwords that are listed in NLTK package except the ones that are already included in query, if there is any.
 
-2. Give different weights to title and description
+2) Give different weights to title and description
         From our observation, some words that frequently appear in description tend to lead the query to another topic that is somehow related to the original topic. Thus, we lower the weight in description to lower the chance of deviation. We set topic weight to 1.2 and description weight to 0.9. The weights are set emperically.
 
-3. Compute tf-idf weight for document vector
-        In our algorithm, tf is the normalized term frequency in the document and idf(t) = log N/M(t), where M is the
-    number of documents that contain term t. And then we compute tfidf = tf * idf.
+3) Compute tf-idf weight for document vector
+        tf is the term frequency in document and idf(t) = log N/M(t), where M is the number of documents that contain term t. Then we compute tfidf = tf * idf. We use the ifidf weight to construct document vector.
 
-4. normalize document vector
-        We take the normalized term frequency instead of the original term frequency. This is calculated by dividing
-    the original term frequency by the length of the document.
+4) normalize document vector
+        We further normalized the tf-idf vector for each document before going through step 5.
 
-5. Rocchio algorithm
-        The key part of our query modification algorithm is Rocchio algorithm, which is also the most popular
-    algorithm in query expansion. The new vector is calculated by:
+5) Rocchio algorithm
+        Rocchio algorithm can be represented as:
                         Q1 = alpha*Q0 + beta*sum(R/n1) - gamma*sum(NR/n2)
-    We set alpha=1, beta=0.8, c=0.15. The value of alpha and gamma is the same as the suggested value from the original algorithm. We raised bata by 0.8 after experiments.
+        We set alpha=1, beta=0.8, gamma=0.15. The value of alpha and gamma is the same as the suggested value from the original algorithm. We raised bata by 0.8 after experiments.
 
-6. Final evaluation (reorder)
-
-
+6) Final evaluation (query expansion and reordering)
+        After the final scores of all terms are calculated, we sort the terms with descreasing scores, and try to pick the top-2 new terms t1, t2 with highest score to add them into the new query. However, if these two new terms' scores differ a lot, say, t1's score is more than 1.5*t2's score, we abandon t2 and only add t1 to the new query. The order of all terms in this new query, including the old query terms and new terms, is decided by their score, from the highest to the lowest. 
 
 
 f) Bing Search Account Key: KtKgk8Mo5p6/rJE0FnlmA8qKVi1F7kS3OQbxik1ZnCg
 
-
-
 g) Additional information:
 
-1. Parsing (stemming):
-        
-    We considered using stemming technique at first. However, stemming actually makes
+1) Parsing (stemming):
 
+    We considered using stemming technique at first. However, stemming sometimes makes ambiguous term even more ambiguous. For instanse, some last names are plural terms of nouns. If we search 'Keanu', the top results will be Keanu Reeves. After stemming, our augment query will become keanu reeve. Of course we can expect that search engine like Bing will automatically correct such mistake, but we still don't want to add incorrect term to the query. Because the lack of dataset for evaluation, we decide to drop this process.
 
+2) Result evaluation:
 
-2. Result evaluation:
-        We ran our program the with the three examples "musk", "gates" and "columbia", the program can achieve a
-    precision of 0.9 after 1, 1 and 2 iterations respectively, which is better than the reference program.
+    We ran our program on the three examples "musk", "gates" and "taj mahal", and the program can achieve a precision of 0.9 on them all after 1 iteration. We also tried some other query terms. 'Columbia' targeting for Columbia University is one of the most challenging query terms we tried. Our query expansion algorithm gave different angmenting suggestions with the sample program. If 'columbia law school' is counted as relevant to Columbia University, then our program can achieve precision of 0.9 in the first query expansion. However, if it's not, then our program will suffer 4 to 5 rounds of query expansion and then ends with results of Columbia Business School.
 
-        In addition to the relevance judgement, we also check the augmented query terms computed with our method.
-    Unfortunately, because the amount of data is rather small, we cannot evaluate the quality statistically. However,
-    we compare our augmented terms with the result of the reference program, we are able to claim that our method is at
-    least parallel to the reference program. For example, with the query, 'Big Apple', both programs could augment the
-    query with 'city york'.
-
-        In order to improve on the performance, the first thing we can do should be rearranging word order as mentioned
-    above. Nevertheless, arbitrarily changing the order based on statistically unreliable data could produce different
-    results. Therefore we stay with the solution before we can come up with a better way in the future.
-
+    We also found that the results returned by Bing also affects our results a lot. When we were first designing our query expansion algorithm, 'gates' always led to terms 'bill' and 'melinda'. The score of 'melinda' is surprisingly high. We want to avoid shifting the search to 'melinda gates', so we spent some time to figure out how to lower the weight of target-related terms. Then one day the top ten results changed. To be specific, 'Bill & Melinda Gates Foundation' disappeared from the first ten results, and thus the score of 'melinda' dropped. Before the search results changed, we could only mitigate the effect by adjusting weights between 'title' and 'description'.
 
 
 h) Reference
 
-[1] A Survey of Automatic Query Expansion in Information Retrieval, CLAUDIO CARPINETO and GIOVANNI ROMANO,
-http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.307.8469&rep=rep1&type=pdf
-
-[2] RELEVANCE FEEDBACK AND OTHER QUERY MODIFICATION TECHNIQUES, Donna Harman,
-http://orion.lcg.ufrj.br/Dr.Dobbs/books/book5/chap11.htm
+[1]  Introduction to Information Retrieval, Cambridge University Press. 2008, Christopher D. Manning, Prabhakar Raghavan and Hinrich Schütze, http://nlp.stanford.edu/IR-book/
